@@ -1,8 +1,12 @@
 import os
 from dotenv import load_dotenv
-from transformers import pipeline
+from openai import OpenAI
 
+# Load environment variables
 load_dotenv()
+
+# Create OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 def parse_transcript(transcript):
     print("Starting...")
@@ -19,35 +23,30 @@ def parse_transcript(transcript):
     else:
         transcript_text = transcript
     
-    print("Creating pipeline...")
-    try:
-        client = pipeline('text2text-generation', 
-                         model='google/flan-t5-base')
-        print("Pipeline created successfully")
-    except Exception as e:
-        print(f"Pipeline error: {e}")
-        return
-    
-    # More specific extraction prompt
-    prompt = f"""What are the main cooking actions in this Ethiopian doro wat recipe? Ignore the introduction and explanations, just list the cooking steps:
+    # Use the prompt that worked well in ChatGPT
+    prompt = f"""Please analyze this recipe transcript and extract:
 
-    {transcript_text[:1500]}
+INGREDIENTS (with quantities if mentioned):
+- [list format]
 
-    Example: Cut onions, heat oil, add spices, etc."""
+STEPS (in order):
+1. [numbered list]
+
+Transcript: {transcript_text}"""
     
-    print(f"Prompt length: {len(prompt)} characters")
-    
+    print("Calling OpenAI API...")
     try:
-        print("Calling model...")
-        response = client(prompt, 
-                         max_new_tokens=300,
-                         do_sample=True,
-                         temperature=0.3,
-                         repetition_penalty=1.1)
-        print("Model responded:")
-        print(response[0]['generated_text'])
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1500
+        )
+        
+        print("\n=== PARSED RECIPE ===")
+        print(response.choices[0].message.content)
+        
     except Exception as e:
-        print(f"Model error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-   parse_transcript('ethiopian_dorowat.txt') 
+    parse_transcript('ethiopian_dorowat.txt')
